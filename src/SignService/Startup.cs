@@ -39,6 +39,7 @@ namespace SignService
         readonly IWebHostEnvironment environment;
         readonly string contentPath;
         public static string ManifestLocation { get; private set; }
+        public static bool IsAppService { get; private set; }
         public Startup(IWebHostEnvironment env, IConfiguration configuration)
         {
             environment = env;
@@ -54,6 +55,7 @@ namespace SignService
                 var home = Environment.GetEnvironmentVariable("HOME_EXPANDED");
                 if (!string.IsNullOrWhiteSpace(home))
                 {
+                    IsAppService = true;
                     contentPath = $@"{home}\site\wwwroot";
                 }
             }
@@ -125,6 +127,7 @@ namespace SignService
             services.AddScoped<ITelemetryLogger, TelemetryLogger>();
             services.AddSingleton<IApplicationConfiguration, ApplicationConfiguration>();
             services.AddSingleton<IDirectoryUtility, DirectoryUtility>();
+            
 
             // Add in our User wrapper
             services.AddScoped<IUser, HttpContextUser>();
@@ -148,6 +151,7 @@ namespace SignService
             services.AddScoped<ISigningToolAggregate, SigningToolAggregate>();
 
             services.AddScoped<IFileNameService, FileNameService>();
+            services.AddScoped<IAntiMalwareService, AntiMalwareService>();
 
             services.AddControllersWithViews(options =>
             {

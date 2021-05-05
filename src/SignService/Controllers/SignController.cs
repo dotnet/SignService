@@ -20,16 +20,19 @@ namespace SignService.Controllers
         readonly ISigningToolAggregate codeSignAggregate;
         readonly ILogger logger;
         readonly IDirectoryUtility directoryUtility;
+        readonly IAntiMalwareService antiMalwareService;
         readonly IFileNameService fileNameService;
 
         public SignController(ISigningToolAggregate codeSignAggregate,
                               ILogger<SignController> logger,
                               IDirectoryUtility directoryUtility,
+                              IAntiMalwareService antiMalwareService,
                               IFileNameService fileNameService)
         {
             this.codeSignAggregate = codeSignAggregate;
             this.logger = logger;
             this.directoryUtility = directoryUtility;
+            this.antiMalwareService = antiMalwareService;
             this.fileNameService = fileNameService;
         }
 
@@ -93,6 +96,13 @@ namespace SignService.Controllers
                 using var sr = new StreamReader(filelist.OpenReadStream());
                 filter = await sr.ReadToEndAsync();
                 filter = filter.Replace("\r\n", "\n").Trim();
+            }
+
+            // Scan input for Malware
+            if(!antiMalwareService.Scan(inputFileName))
+            {
+                Response.StatusCode = StatusCodes.Status406NotAcceptable;
+                return;
             }
 
             // This will block until it's done
