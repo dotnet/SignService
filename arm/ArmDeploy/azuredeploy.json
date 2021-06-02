@@ -174,7 +174,7 @@
       "apiVersion": "2014-04-01",
       "name": "[variables('appInsightsName')]",
       "type": "Microsoft.Insights/components",
-      "location": "East US",
+      "location": "[resourceGroup().location]",
       "tags": {
         "[concat('hidden-link:', resourceGroup().id, '/providers/Microsoft.Web/sites/', parameters('webSiteName'))]": "Resource",
         "displayName": "AppInsightsComponent"
