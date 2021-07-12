@@ -6,11 +6,11 @@ using System.Threading.Tasks;
 using Azure.Core;
 using Azure.Security.KeyVault.Certificates;
 
-using Microsoft.AspNetCore.Authentication.AzureAD.UI;
-
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.Clients.ActiveDirectory;
+using Microsoft.Identity.Web;
+//using Microsoft.IdentityModel.Clients.ActiveDirectory;
 
 using RSAKeyVaultProvider;
 
@@ -35,14 +35,16 @@ namespace SignService.Services
         Uri keyIdentifier;
         readonly IOptionsSnapshot<ResourceIds> settings;
         readonly ILogger<KeyVaultService> logger;
-        readonly AzureADOptions aadOptions;
+        readonly MicrosoftIdentityOptions aadOptions;
+        readonly ITokenAcquisition tokenAcquisition;
     
 
-        public KeyVaultService(IOptionsSnapshot<ResourceIds> settings, IOptionsSnapshot<AzureADOptions> aadOptions, ILogger<KeyVaultService> logger)
+        public KeyVaultService(IOptionsSnapshot<ResourceIds> settings, IOptionsSnapshot<MicrosoftIdentityOptions> aadOptions, ITokenAcquisition tokenAcquisition, ILogger<KeyVaultService> logger)
         {
-           this.settings = settings;
+            this.settings = settings;
+            this.tokenAcquisition = tokenAcquisition;
             this.logger = logger;
-            this.aadOptions = aadOptions.Get(AzureADDefaults.AuthenticationScheme);
+            this.aadOptions = aadOptions.Get(OpenIdConnectDefaults.AuthenticationScheme);
         }
 
         public CertificateInfo CertificateInfo { get; private set; }
@@ -51,10 +53,11 @@ namespace SignService.Services
 
         public async Task InitializeAccessTokenAsync(string incomingToken)
         {
-            
-            var context = new AuthenticationContext($"{aadOptions.Instance}{aadOptions.TenantId}", null); // No token caching
-            var credential = new ClientCredential(aadOptions.ClientId, aadOptions.ClientSecret);
-            var result = await context.AcquireTokenAsync(settings.Value.VaultId, credential, new UserAssertion(incomingToken));
+
+            //  var context = new AuthenticationContext($"{aadOptions.Instance}{aadOptions.TenantId}", null); // No token caching
+            //var credential = new ClientCredential(aadOptions.ClientId, aadOptions.ClientSecret);
+            //  var result = await context.AcquireTokenAsync(settings.Value.VaultId, credential, new UserAssertion(incomingToken));
+            var result = await tokenAcquisition.GetAuthenticationResultForUserAsync(new[] { settings.Value.VaultUserId }).ConfigureAwait(false);            
             if (result == null)
             {
                 logger.LogError("Failed to authenticate to Key Vault on-behalf-of user");

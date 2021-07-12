@@ -1,8 +1,11 @@
 ﻿using System;
 using System.Linq;
 using System.Reflection;
-using Microsoft.AspNetCore.Authentication.AzureAD.UI;
+
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.Extensions.Options;
+using Microsoft.Identity.Web;
+
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using SignService.Models;
@@ -30,9 +33,9 @@ namespace SignService.Utils
             if (appId == null)
             {
                 var settings = JsonConvert.DefaultSettings();
-                var jsonContract = settings.ContractResolver.ResolveContract(typeof(IOptionsMonitor<AzureADOptions>));
-                var aadOptions = (IOptionsMonitor<AzureADOptions>)jsonContract.DefaultCreator();
-                appId = aadOptions.Get(AzureADDefaults.AuthenticationScheme).ClientId.Replace("-", "");
+                var jsonContract = settings.ContractResolver.ResolveContract(typeof(IOptionsMonitor<MicrosoftIdentityOptions>));
+                var aadOptions = (IOptionsMonitor<MicrosoftIdentityOptions>)jsonContract.DefaultCreator();
+                appId = aadOptions.Get(OpenIdConnectDefaults.AuthenticationScheme).ClientId.Replace("-", "");
             }
         }
 

@@ -5,10 +5,12 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authentication.AzureAD.UI;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.Clients.ActiveDirectory;
+using Microsoft.Identity.Client;
+using Microsoft.Identity.Web;
+//using Microsoft.IdentityModel.Clients.ActiveDirectory;
 using Newtonsoft.Json;
 using SignService.Models;
 
@@ -16,21 +18,25 @@ namespace SignService.Services
 {
     public class GraphHttpService : IGraphHttpService
     {
-        readonly AzureADOptions azureAdOptions;
+        readonly MicrosoftIdentityOptions azureAdOptions;
         readonly AdminConfig adminConfig;
-        readonly AuthenticationContext adalContext;
+        //readonly AuthenticationContext adalContext;
+        readonly ITokenAcquisition tokenAcquisition;
         static readonly HttpMethod PatchMethod = new("PATCH");
-        readonly string graphResourceId;
+        readonly string graphUserResourceId;
+        readonly string graphAppResourceId;
 
-        public GraphHttpService(IOptionsSnapshot<AzureADOptions> azureAdOptions, IOptionsSnapshot<AdminConfig> adminConfig, IOptionsSnapshot<ResourceIds> resources, IUser user, IHttpContextAccessor contextAccessor)
+        public GraphHttpService(IOptionsSnapshot<MicrosoftIdentityOptions> azureAdOptions, IOptionsSnapshot<AdminConfig> adminConfig, IOptionsSnapshot<ResourceIds> resources, IUser user, ITokenAcquisition tokenAcquisition, IHttpContextAccessor contextAccessor)
         {
-            this.azureAdOptions = azureAdOptions.Get(AzureADDefaults.AuthenticationScheme);
+            this.azureAdOptions = azureAdOptions.Get(OpenIdConnectDefaults.AuthenticationScheme);
             this.adminConfig = adminConfig.Value;
-            graphResourceId = resources.Value.GraphId;
+            this.tokenAcquisition = tokenAcquisition;
+            graphAppResourceId = resources.Value.GraphAppId;
+            graphUserResourceId = resources.Value.GraphUserId;
 
             var userId = user.ObjectId;
 
-            adalContext = new AuthenticationContext($"{this.azureAdOptions.Instance}{this.azureAdOptions.TenantId}", new ADALSessionCache(userId, contextAccessor));
+           // adalContext = new AuthenticationContext($"{this.azureAdOptions.Instance}{this.azureAdOptions.TenantId}", new ADALSessionCache(userId, contextAccessor));
         }
 
         public async Task<List<T>> Get<T>(string url)
@@ -162,11 +168,13 @@ namespace SignService.Services
             AuthenticationResult result;
             if (accessAsUser)
             {
-                result = await adalContext.AcquireTokenSilentAsync(graphResourceId, azureAdOptions.ClientId).ConfigureAwait(false);
+                //result = await adalContext.AcquireTokenSilentAsync(graphResourceId, azureAdOptions.ClientId).ConfigureAwait(false);
+                result = await tokenAcquisition.GetAuthenticationResultForUserAsync(new[] { graphUserResourceId }).ConfigureAwait(false);
             }
             else
             {
-                result = await adalContext.AcquireTokenAsync(graphResourceId, new ClientCredential(azureAdOptions.ClientId, azureAdOptions.ClientSecret)).ConfigureAwait(false);
+                //result = await adalContext.AcquireTokenAsync(graphResourceId, new ClientCredential(azureAdOptions.ClientId, azureAdOptions.ClientSecret)).ConfigureAwait(false);
+                result = await tokenAcquisition.GetAuthenticationResultForAppAsync(graphAppResourceId).ConfigureAwait(false);
             }
 
             var client = new HttpClient();

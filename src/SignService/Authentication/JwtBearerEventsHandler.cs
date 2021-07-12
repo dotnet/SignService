@@ -6,13 +6,12 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Security.Claims;
 using System.Threading.Tasks;
-using Microsoft.ApplicationInsights;
-using Microsoft.AspNetCore.Authentication.AzureAD.UI;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.Clients.ActiveDirectory;
+using Microsoft.Identity.Web;
+
 using Newtonsoft.Json;
 using SignService.Models;
 using SignService.Services;
@@ -24,9 +23,10 @@ namespace SignService.Authentication
         public override async Task TokenValidated(TokenValidatedContext context)
         {
             var contextAccessor = context.HttpContext.RequestServices.GetRequiredService<IHttpContextAccessor>();
-            var azureOptions = context.HttpContext.RequestServices.GetRequiredService<IOptionsMonitor<AzureADOptions>>().Get(AzureADDefaults.AuthenticationScheme);
+            var azureOptions = context.HttpContext.RequestServices.GetRequiredService<IOptionsMonitor<MicrosoftIdentityOptions>>().Get(JwtBearerDefaults.AuthenticationScheme);
             var settings = context.HttpContext.RequestServices.GetRequiredService<IOptions<ResourceIds>>().Value;
             var adminOptions = context.HttpContext.RequestServices.GetRequiredService<IOptions<AdminConfig>>().Value;
+            var tokenAquisition = context.HttpContext.RequestServices.GetRequiredService<ITokenAcquisition>();
 
             var passed = false;
 
@@ -39,8 +39,8 @@ namespace SignService.Authentication
                 var oid = identity.Claims.FirstOrDefault(c => c.Type == "oid")?.Value;
 
                 // get the user
-                var authContext = new AuthenticationContext($"{azureOptions.Instance}{azureOptions.TenantId}", null); // No token caching
-                var credential = new ClientCredential(azureOptions.ClientId, azureOptions.ClientSecret);
+                //var authContext = new AuthenticationContext($"{azureOptions.Instance}{azureOptions.TenantId}", null); // No token caching
+                //var credential = new ClientCredential(azureOptions.ClientId, azureOptions.ClientSecret);
 
                 var incomingToken = ((JwtSecurityToken)context.SecurityToken).RawData;
 
@@ -65,7 +65,8 @@ namespace SignService.Authentication
                 }
                 else // get them from the graph directly
                 {
-                    var result = await authContext.AcquireTokenAsync(settings.GraphId, credential, new UserAssertion(incomingToken));
+                    //var result = await authContext.AcquireTokenAsync(settings.GraphId, credential, new UserAssertion(incomingToken));
+                    var result = await tokenAquisition.GetAuthenticationResultForUserAsync(new[] { settings.GraphUserId }).ConfigureAwait(false);
 
                     var url = $"{adminOptions.GraphInstance}{azureOptions.TenantId}/users/{oid}?api-version=1.6";
 

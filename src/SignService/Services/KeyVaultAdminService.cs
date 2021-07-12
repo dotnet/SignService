@@ -8,12 +8,13 @@ using Azure.Core;
 using Azure.Identity;
 using Azure.Security.KeyVault.Certificates;
 
-using Microsoft.AspNetCore.Authentication.AzureAD.UI;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Azure.Management.KeyVault;
 using Microsoft.Azure.Management.KeyVault.Models;
 using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.Clients.ActiveDirectory;
+using Microsoft.Identity.Web;
+//using Microsoft.IdentityModel.Clients.ActiveDirectory;
 using SignService.Models;
 using SignService.Utils;
 
@@ -33,9 +34,9 @@ namespace SignService.Services
 
     public class KeyVaultAdminService : IKeyVaultAdminService
     {
-        readonly AuthenticationContext adalContext;
+        //readonly AuthenticationContext adalContext;
         readonly string resourceGroup;
-        readonly AzureADOptions azureAdOptions;
+        readonly MicrosoftIdentityOptions azureAdOptions;
         readonly AdminConfig adminConfig;
         readonly Guid tenantId;
         readonly Guid clientId;
@@ -45,22 +46,26 @@ namespace SignService.Services
         readonly IGraphHttpService graphHttpService;
         readonly IApplicationConfiguration applicationConfiguration;
         readonly ResourceIds resources;
+        readonly ITokenAcquisition tokenAcquisition;
 
-        public KeyVaultAdminService(IOptionsSnapshot<AzureADOptions> azureAdOptions,
+        public KeyVaultAdminService(IOptionsSnapshot<MicrosoftIdentityOptions> azureAdOptions,
                                     IOptionsSnapshot<AdminConfig> adminConfig,
                                     IOptionsSnapshot<ResourceIds> resources,
                                     IGraphHttpService graphHttpService,
                                     IApplicationConfiguration applicationConfiguration,
                                     IUser user,
-                                    IHttpContextAccessor contextAccessor)
+                                    ITokenAcquisition tokenAcquisition)
+            //,
+              //                      IHttpContextAccessor contextAccessor)
         {
             userId = user.ObjectId;
             tenantId = Guid.Parse(user.TenantId);
-            this.azureAdOptions = azureAdOptions.Get(AzureADDefaults.AuthenticationScheme);
+            this.tokenAcquisition = tokenAcquisition;
+            this.azureAdOptions = azureAdOptions.Get(OpenIdConnectDefaults.AuthenticationScheme);
 
             clientId = Guid.Parse(this.azureAdOptions.ClientId);
 
-            adalContext = new AuthenticationContext($"{this.azureAdOptions.Instance}{this.azureAdOptions.TenantId}", new ADALSessionCache(userId, contextAccessor));
+            //adalContext = new AuthenticationContext($"{this.azureAdOptions.Instance}{this.azureAdOptions.TenantId}", new ADALSessionCache(userId, contextAccessor));
             resourceGroup = adminConfig.Value.ResourceGroup;
 
             kvManagmentClient = new KeyVaultManagementClient(new AutoRestCredential<KeyVaultManagementClient>(GetAppToken))
@@ -81,16 +86,21 @@ namespace SignService.Services
 
         async Task<string> GetAppToken(string authority, string resource, string scope)
         {
-            var result = await adalContext.AcquireTokenAsync(resources.AzureRM, new ClientCredential(azureAdOptions.ClientId, azureAdOptions.ClientSecret)).ConfigureAwait(false);
+            //var result = await adalContext.AcquireTokenAsync(resources.AzureRM, new ClientCredential(azureAdOptions.ClientId, azureAdOptions.ClientSecret)).ConfigureAwait(false);
 
-            return result.AccessToken;
+            var token = await tokenAcquisition.GetAccessTokenForAppAsync(resources.AzureRMAppId).ConfigureAwait(false);
+            return token;
+            //return result.AccessToken;
         }
 
         async Task<string> GetOboToken(string authority, string resource, string scope)
         {
-            var result = await adalContext.AcquireTokenSilentAsync(resources.AzureRM, new ClientCredential(azureAdOptions.ClientId, azureAdOptions.ClientSecret), UserIdentifier.AnyUser).ConfigureAwait(false);
+            //   var result = await adalContext.AcquireTokenSilentAsync(resources.AzureRM, new ClientCredential(azureAdOptions.ClientId, azureAdOptions.ClientSecret), UserIdentifier.AnyUser).ConfigureAwait(false);
 
-            return result.AccessToken;
+            // return result.AccessToken;            
+
+            var token = await tokenAcquisition.GetAccessTokenForUserAsync(new[] { resources.AzureRMUserId }).ConfigureAwait(false);
+            return token;
         }
 
         public async Task<List<VaultModel>> ListKeyVaultsAsync()

@@ -2,8 +2,11 @@
 {
     public class ResourceIds
     {
-        public string GraphId { get; set; }
-        public string VaultId { get; set; }
-        public string AzureRM { get; set; }
+        public string GraphAppId { get; set; }
+        public string VaultAppId { get; set; }
+        public string AzureRMAppId { get; set; }
+        public string GraphUserId { get; set; }
+        public string VaultUserId { get; set; }
+        public string AzureRMUserId { get; set; }
     }
 }

@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authentication.AzureAD.UI;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.Extensions.Options;
+using Microsoft.Identity.Web;
+
 using Newtonsoft.Json;
 using SignService.Models;
 
@@ -24,14 +26,14 @@ namespace SignService.Services
 
     public class UserAdminService : IUserAdminService
     {
-        readonly AzureADOptions azureAdOptions;
+        readonly MicrosoftIdentityOptions azureAdOptions;
         readonly IApplicationConfiguration applicationConfiguration;
         readonly IGraphHttpService graphHttpService;
         readonly string extensionPrefix;
 
-        public UserAdminService(IOptionsSnapshot<AzureADOptions> azureAdOptions, IApplicationConfiguration applicationConfiguration, IGraphHttpService graphHttpService)
+        public UserAdminService(IOptionsSnapshot<MicrosoftIdentityOptions> azureAdOptions, IApplicationConfiguration applicationConfiguration, IGraphHttpService graphHttpService)
         {
-            this.azureAdOptions = azureAdOptions.Get(AzureADDefaults.AuthenticationScheme);
+            this.azureAdOptions = azureAdOptions.Get(OpenIdConnectDefaults.AuthenticationScheme);
             this.applicationConfiguration = applicationConfiguration;
             this.graphHttpService = graphHttpService;
             extensionPrefix = $"extension_{this.azureAdOptions.ClientId.Replace("-", "")}_";

@@ -4,6 +4,8 @@ using System.IdentityModel.Tokens.Jwt;
 using System.IO;
 using System.Linq;
 using System.Security.Claims;
+using System.Threading.Tasks;
+
 using Microsoft.ApplicationInsights;
 using Microsoft.ApplicationInsights.AspNetCore;
 using Microsoft.ApplicationInsights.AspNetCore.TelemetryInitializers;
@@ -12,7 +14,6 @@ using Microsoft.ApplicationInsights.DataContracts;
 using Microsoft.ApplicationInsights.Extensibility;
 using Microsoft.ApplicationInsights.SnapshotCollector;
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.AzureAD.UI;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
@@ -25,6 +26,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
+using Microsoft.Identity.Web;
+using Microsoft.Identity.Web.UI;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Newtonsoft.Json;
 using SignService.Authentication;
@@ -91,29 +94,42 @@ namespace SignService
             JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 
             // Add framework services.
-            services.AddAuthentication(AzureADDefaults.AuthenticationScheme)
-                    .AddAzureAD(options => Configuration.Bind("AzureAd", options))
-                    .AddAzureADBearer(options => Configuration.Bind("AzureAd", options));
+            var b = services.AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
+              .AddMicrosoftIdentityWebApp(Configuration);
 
-            services.Configure<CookieAuthenticationOptions>(AzureADDefaults.CookieScheme, options => options.Events = new CookieAuthenticationEventsHandler());
+            b
+                  .EnableTokenAcquisitionToCallDownstreamApi(new[] { "https://graph.windows.net/.default" })
+                     // .AddMicrosoftGraph(Configuration.GetSection("DownstreamApi"))
+                      .AddInMemoryTokenCaches();
 
-            services.Configure<OpenIdConnectOptions>(AzureADDefaults.OpenIdScheme, options =>
+
+            services.AddAuthentication()
+          .AddMicrosoftIdentityWebApi(Configuration,
+                                      JwtBearerDefaults.AuthenticationScheme)
+          .EnableTokenAcquisitionToCallDownstreamApi();
+
+
+            //services.AddAuthentication(AzureADDefaults.AuthenticationScheme)
+            //        .AddAzureAD(options => Configuration.Bind("AzureAd", options))
+            //        .AddAzureADBearer(options => Configuration.Bind("AzureAd", options));
+
+            services.Configure<CookieAuthenticationOptions>(OpenIdConnectDefaults.AuthenticationScheme, options => options.Events = new CookieAuthenticationEventsHandler());
+
+            services.Configure<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme, options =>
             {
                 options.TokenValidationParameters.RoleClaimType = "roles";
                 options.TokenValidationParameters.NameClaimType = "name";
-                options.ResponseType = OpenIdConnectResponseType.CodeIdToken;
-                options.Scope.Add("offline_access");
-                options.Events = new OpenIdConnectEventsHandler();
             });
 
-            services.Configure<JwtBearerOptions>(AzureADDefaults.JwtBearerAuthenticationScheme, options =>
+            services.Configure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>
             {
                 options.Audience = Configuration["AzureAd:Audience"];
                 options.TokenValidationParameters.RoleClaimType = "roles";
                 options.TokenValidationParameters.NameClaimType = "name";
-                options.Events = new JwtBearerEventsHandler();
-            });
 
+                // TODO: This has to be hooked up differently
+                options.Events = new JwtBearerEventsHandler(); 
+            });
 
             services.AddSession();
 
@@ -155,7 +171,7 @@ namespace SignService
                     .RequireAuthenticatedUser()
                     .Build();
                 options.Filters.Add(new AuthorizeFilter(policy));
-            });
+            }).AddMicrosoftIdentityUI();
             services.AddRazorPages();
         }
 

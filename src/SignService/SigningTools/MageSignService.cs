@@ -8,7 +8,6 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Linq;
-using Microsoft.AspNetCore.Authentication.AzureAD.UI;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -19,8 +18,7 @@ using SignService.Utils;
 namespace SignService.SigningTools
 {
     public class MageSignService : ICodeSignService
-    {
-        readonly AzureADOptions aadOptions;
+    {     
         readonly IKeyVaultService keyVaultService;
         readonly ILogger<MageSignService> logger;
         readonly ITelemetryLogger telemetryLogger;
@@ -33,15 +31,13 @@ namespace SignService.SigningTools
             MaxDegreeOfParallelism = 4
         };
 
-        public MageSignService(IOptionsMonitor<AzureADOptions> aadOptions,
-                               IWebHostEnvironment hostingEnvironment,
+        public MageSignService(IWebHostEnvironment hostingEnvironment,
                                IKeyVaultService keyVaultService,
                                IServiceProvider serviceProvider,
                                ILogger<MageSignService> logger,
                                ITelemetryLogger telemetryLogger,
                                IDirectoryUtility directoryUtility)
         {
-            this.aadOptions = aadOptions.Get(AzureADDefaults.AuthenticationScheme);
             this.keyVaultService = keyVaultService;
             this.logger = logger;
             this.telemetryLogger = telemetryLogger;
